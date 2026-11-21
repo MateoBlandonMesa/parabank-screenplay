@@ -1,0 +1,9 @@
+.gradle/
+build/
+target/
+out/
+.idea/
+*.iml
+drivers/
+README-guion.md
+reporte-de-respaldo/

@@ -1,0 +1,80 @@
+plugins {
+    id 'java'
+    id 'eclipse'
+    id 'idea'
+    id 'net.serenity-bdd.serenity-gradle-plugin' version '4.2.34'
+}
+
+group = 'co.com.calidad'
+version = '1.0.0'
+
+// OneDrive bloquea carpetas cuando Gradle intenta borrarlas.
+// La compilacion y el reporte HTML viven en la carpeta temporal.
+def reporteSerenity = new File(System.getProperty('java.io.tmpdir'), 'parabank-screenplay-serenity').absolutePath
+layout.buildDirectory.set(file("${System.getProperty('java.io.tmpdir')}/parabank-screenplay-build"))
+
+serenity {
+    outputDirectory = reporteSerenity
+}
+
+// El arquetipo del profesor (plugin screenplayarchitecture 2.0.1) deja Serenity 4.1.0.
+// Esta máquina tiene Chrome 157, y esa versión de Serenity no trae un Selenium capaz
+// de descargar el driver correspondiente. 4.2.34 conserva el mismo patrón Screenplay
+// (Actor, Task, Interaction, Question, Cucumber y el reporte HTML) y sí arranca Chrome.
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    serenityVersion = '4.2.34'
+    junitVersion = '4.13.2'
+    hamcrestVersion = '1.3'
+}
+
+dependencies {
+    implementation "net.serenity-bdd:serenity-core:${serenityVersion}"
+    implementation "net.serenity-bdd:serenity-junit:${serenityVersion}"
+    implementation "net.serenity-bdd:serenity-screenplay:${serenityVersion}"
+    implementation "net.serenity-bdd:serenity-screenplay-webdriver:${serenityVersion}"
+    implementation "net.serenity-bdd:serenity-cucumber:${serenityVersion}"
+    implementation 'org.slf4j:slf4j-simple:2.0.16'
+
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.hamcrest:hamcrest-all:${hamcrestVersion}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('test') {
+    useJUnit()
+    maxParallelForks = 1
+    workingDir = projectDir
+
+    systemProperty 'file.encoding', 'UTF-8'
+    systemProperty 'serenity.outputDirectory', reporteSerenity
+    systemProperty 'serenity.step.delay', System.getProperty('serenity.step.delay', '500')
+    systemProperty 'demo.pausa.segundos', System.getProperty('demo.pausa.segundos', '1')
+
+    def etiquetas = System.getProperty('cucumber.filter.tags')
+    if (etiquetas) {
+        systemProperty 'cucumber.filter.tags', etiquetas
+    }
+    def nombre = System.getProperty('cucumber.filter.name')
+    if (nombre) {
+        systemProperty 'cucumber.filter.name', nombre
+    }
+
+    testLogging {
+        showStandardStreams = true
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+    }
+    finalizedBy 'aggregate'
+}
